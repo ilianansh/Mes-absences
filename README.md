@@ -2,7 +2,7 @@
 
 Mes absences peut être installée sur votre écran d'accueil :
 
-Android : Ouvrez le lien dans Google Chrome, appuyez sur le menu, puis sélectionnez « Installer l'application » ou « Ajouter à l'écran d'accueil ».
+Android : Ouvrez le lien dans Google Chrome, appuyez sur le menu, puis sélectionnez « Installer raccourci de l'application » et installer l'application.
 iOS : Ouvrez le lien dans Safari, appuyez sur le bouton de partage, puis sélectionnez « Sur l'écran d'accueil ».
 
 ...Une fois installée, l'application est accessible directement depuis votre téléphone.
