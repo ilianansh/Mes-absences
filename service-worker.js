@@ -1,4 +1,4 @@
-const CACHE = 'absences-esst-v1'; // incrémentez (v2, v3…) à chaque mise à jour du code
+const CACHE = 'absences-esst-v3'; // incrémentez (v2, v3…) à chaque mise à jour du code
 const FILES = ['./', './index.html', './style.css', './script.js', './manifest.json',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e => {

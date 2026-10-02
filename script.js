@@ -27,7 +27,7 @@ function render() {
   document.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('act', b.dataset.go === (view.n === 'data' ? 'data' : 'home')));
   if (view.n === 'mod' && !mod(view.id)) view = { n: 'home' };
   if (view.n === 'home') {
-    top.innerHTML = '<h1>Mes absences<small>ESST · limite : 5 par module</small></h1><button id="addm" aria-label="Nouveau module">＋ 📚</button>';
+    top.innerHTML = '<h1>Mes absences<small>ESST · limite : 5 par module</small></h1><button id="addm" aria-label="Nouveau module">＋ 📚Modules </button>';
     $('#addm').onclick = () => modForm();
     const all = S.modules.map(stats), T = all.reduce((a, s) => a + s.t, 0), J = all.reduce((a, s) => a + s.j, 0), risk = all.filter(s => s.st[0] !== 'ok').length;
     app.innerHTML = S.modules.length ? `<div class="card"><h2>Vue d’ensemble</h2><div class="nums"><div><b>${T}</b><span>Absences</span></div><div><b>${J}</b><span>Justifiées</span></div><div><b>${T - J}</b><span>Non just.</span></div><div><b>${risk}</b><span>À risque</span></div></div></div><h3>Modules</h3>` +
