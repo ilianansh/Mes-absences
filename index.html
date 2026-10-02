@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mes Absences ESST</title>
+<meta name="theme-color" content="#7b1e2e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="blue IT company logo.svg">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Absences">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="style.css">
+</head><body>
+<header id="top"></header>
+<main id="app"></main>
+<nav id="nav">
+  <button data-go="home"><span>🏠</span>Accueil</button>
+  <button id="fab" aria-label="Ajouter une absence">+</button>
+  <button data-go="data"><span>💾</span>Données</button>
+</nav>
+<dialog id="sheet"></dialog>
+<div id="toast" role="status"></div>
+<input type="file" id="file" accept="application/json,.json" hidden>
+<script src="script.js"></script>
+</body></html>
