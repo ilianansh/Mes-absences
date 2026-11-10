@@ -10,6 +10,47 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 let tt; function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2200); }
 const mod = id => S.modules.find(m => m.id === id);
 
+/* ---------- Calculateur de moyenne ---------- */
+let avgOpen = false;
+const LBL = { cc1: 'CC1', cc2: 'CC2', exam: 'Examen', tp: 'Examen TP' };
+const hasTP = m => m.types.some(t => /^\s*tp\s*$/i.test(t));
+const f2 = n => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// vide → null · nombre invalide → NaN · sinon le nombre (virgule ou point acceptés)
+const num = v => { const s = String(v ?? '').trim().replace(',', '.'); if (s === '') return null; return /^\d+(\.\d+)?$/.test(s) ? Number(s) : NaN; };
+const fieldErr = (k, v) => { const n = num(v); if (n === null) return false; return isNaN(n) || (k === 'coef' ? n <= 0 || n > 99 : n > 20); };
+function calcAvg(m) {
+  const g = m.grades || {}, tp = hasTP(m), keys = ['cc1', 'cc2', 'exam', ...(tp ? ['tp'] : [])];
+  if ([...keys, 'coef'].some(k => fieldErr(k, g[k]))) return { s: 'err' };
+  const miss = keys.filter(k => num(g[k]) === null);
+  if (miss.length) return { s: 'miss', miss: miss.map(k => LBL[k]) };
+  const v = k => num(g[k]), cc = (v('cc1') + v('cc2')) / 2;
+  const avg = tp ? v('tp') * 0.2 + cc * 0.2 + v('exam') * 0.6 : cc * 0.4 + v('exam') * 0.6;
+  return { s: 'ok', avg, coef: num(g.coef) };
+}
+function gradeCard(m) {
+  const g = m.grades || {}, tp = hasTP(m);
+  const fld = (k, l, u) => `<label>${l} <small>${u}</small><input data-g="${k}" inputmode="decimal" autocomplete="off" placeholder="—" value="${esc(g[k] ?? '')}"></label>`;
+  return `<details class="card" id="avg" ${avgOpen ? 'open' : ''}><summary class="row"><h2>Moyenne du module</h2><b id="avgsum"></b></summary><div class="gr">${fld('coef', 'Coefficient', '')}${fld('cc1', 'Note CC1', '(/20)')}${fld('cc2', 'Note CC2', '(/20)')}${fld('exam', 'Note d’examen', '(/20)')}${tp ? fld('tp', 'Note d’examen TP', '(/20)') : ''}</div><small class="hint">${tp ? 'TP × 0,2 + moyenne CC × 0,2 + Examen × 0,6' : 'Moyenne CC × 0,4 + Examen × 0,6'}</small><div id="avgres"></div></details>`;
+}
+function updateAvg(m) {
+  const r = calcAvg(m), res = $('#avgres'), sum = $('#avgsum'); if (!res) return;
+  if (r.s === 'err') { sum.textContent = '—'; res.innerHTML = '<div class="avg-msg bad">Vérifiez les champs en rouge : les notes doivent être comprises entre 0 et 20.</div>'; }
+  else if (r.s === 'miss') { sum.textContent = '—'; res.innerHTML = `<div class="avg-msg">Renseignez : ${r.miss.join(', ')}.</div>`; }
+  else {
+    const a = Math.round(r.avg * 100) / 100, ok = a >= 10; sum.textContent = f2(a) + ' / 20';
+    res.innerHTML = `<div class="avg-big"><b class="${ok ? 'pass' : 'fail'}">${f2(a)} / 20</b><span class="badge ${ok ? 'ok' : 'ex'}">${ok ? 'Validé' : 'Non validé'}</span>${r.coef ? `<small>Coefficient ${String(r.coef).replace('.', ',')} → ${f2(r.avg * r.coef)} points</small>` : ''}</div>`;
+  }
+}
+function bindGrades(m) {
+  const d = $('#avg'); m.grades = m.grades || {};
+  d.ontoggle = () => { avgOpen = d.open; };
+  d.querySelectorAll('[data-g]').forEach(i => {
+    i.classList.toggle('bad', fieldErr(i.dataset.g, i.value));
+    i.oninput = () => { m.grades[i.dataset.g] = i.value; i.classList.toggle('bad', fieldErr(i.dataset.g, i.value)); save(); updateAvg(m); };
+  });
+  updateAvg(m);
+}
+
 function stats(m) {
   const t = m.absences.length, j = m.absences.filter(a => a.justified).length, u = t - j;
   let st = ['ok', 'Sûr'], msg = '';
@@ -27,7 +68,7 @@ function render() {
   document.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('act', b.dataset.go === (view.n === 'data' ? 'data' : 'home')));
   if (view.n === 'mod' && !mod(view.id)) view = { n: 'home' };
   if (view.n === 'home') {
-    top.innerHTML = '<h1>Mes absences<small>ESST · limite : 5 par module</small></h1><button id="addm" aria-label="Nouveau module">＋ 📚Modules </button>';
+    top.innerHTML = '<h1>Mes absences<small>ESST · limite : 5 par module</small></h1><button id="addm" aria-label="Nouveau module">＋ 📚</button>';
     $('#addm').onclick = () => modForm();
     const all = S.modules.map(stats), T = all.reduce((a, s) => a + s.t, 0), J = all.reduce((a, s) => a + s.j, 0), risk = all.filter(s => s.st[0] !== 'ok').length;
     app.innerHTML = S.modules.length ? `<div class="card"><h2>Vue d’ensemble</h2><div class="nums"><div><b>${T}</b><span>Absences</span></div><div><b>${J}</b><span>Justifiées</span></div><div><b>${T - J}</b><span>Non just.</span></div><div><b>${risk}</b><span>À risque</span></div></div></div><h3>Modules</h3>` +
@@ -40,14 +81,15 @@ function render() {
     $('#back').onclick = () => { view = { n: 'home' }; render(); };
     $('#edm').onclick = () => modForm(m.id);
     const list = [...m.absences].sort((a, b) => b.date.localeCompare(a.date));
-    app.innerHTML = `<div class="card"><div class="row"><h2>${s.t} / ${MAX} absences</h2><span class="badge ${s.st[0]}">${s.st[1]}</span></div>${bar(s)}${nums(s)}${s.msg ? `<div class="alert ${s.st[0]}">${s.msg}</div>` : ''}</div><h3>Historique</h3>` +
-      (list.length ? list.map(a => `<div class="card abs"><div class="d"><b>${fdate(a.date)}</b><span class="chip">${esc(a.type)}</span><p>${esc(a.note) || 'Sans motif'}</p></div><button class="j ${a.justified ? 'on' : ''}" data-j="${a.id}">${a.justified ? '✓ Justifiée' : 'Non justifiée'}</button><div><button class="ic" data-e="${a.id}" aria-label="Modifier">✏️</button><button class="ic" data-d="${a.id}" aria-label="Supprimer">🗑️</button></div></div>`).join('') : '<div class="empty"> Aucune absence enregistrée!.</div>');
+    app.innerHTML = `<div class="card"><div class="row"><h2>${s.t} / ${MAX} absences</h2><span class="badge ${s.st[0]}">${s.st[1]}</span></div>${bar(s)}${nums(s)}${s.msg ? `<div class="alert ${s.st[0]}">${s.msg}</div>` : ''}</div>${gradeCard(m)}<h3>Historique</h3>` +
+      (list.length ? list.map(a => `<div class="card abs"><div class="d"><b>${fdate(a.date)}</b><span class="chip">${esc(a.type)}</span><p>${esc(a.note) || 'Sans motif'}</p></div><button class="j ${a.justified ? 'on' : ''}" data-j="${a.id}">${a.justified ? '✓ Justifiée' : 'Non justifiée'}</button><div><button class="ic" data-e="${a.id}" aria-label="Modifier">✏️</button><button class="ic" data-d="${a.id}" aria-label="Supprimer">🗑️</button></div></div>`).join('') : '<div class="empty">🎉 Aucune absence enregistrée.</div>');
+    bindGrades(m);
     app.querySelectorAll('[data-j]').forEach(b => b.onclick = () => { const a = m.absences.find(x => x.id === b.dataset.j); a.justified = !a.justified; save(); render(); toast(a.justified ? 'Marquée comme justifiée' : 'Marquée comme non justifiée'); });
     app.querySelectorAll('[data-e]').forEach(b => b.onclick = () => absForm(m.id, b.dataset.e));
     app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => confirmBox('Supprimer cette absence ?', () => { m.absences = m.absences.filter(x => x.id !== b.dataset.d); save(); render(); toast('Absence supprimée'); }));
   } else {
     top.innerHTML = '<h1>Données<small>Sauvegarde locale</small></h1>';
-    app.innerHTML = `<div class="card"><h2>Sauvegarde</h2><p style="color:var(--mu);font-size:.9rem">Vos données restent sur cet appareil. Exportez-les régulièrement pour les conserver ou les transférer.</p><div class="btns"><button class="btn" id="exp">↧ Exporter</button><button class="btn sec" id="imp">↥ Importer</button></div></div><div class="card"><h2>Zone sensible</h2><div class="btns"><button class="btn del" id="rst">Tout effacer</button></div></div>`;
+    app.innerHTML = `<div class="card"><h2>Sauvegarde</h2><p style="color:var(--mu);font-size:.9rem">Vos données restent sur cet appareil. Exportez-les régulièrement pour les conserver ou les transférer.</p><div class="btns"><button class="btn" id="exp">⬇️ Exporter</button><button class="btn sec" id="imp">⬆️ Importer</button></div></div><div class="card"><h2>Zone sensible</h2><div class="btns"><button class="btn del" id="rst">Tout effacer</button></div></div>`;
     $('#exp').onclick = exportData; $('#imp').onclick = () => $('#file').click();
     $('#rst').onclick = () => confirmBox('Effacer tous les modules et absences ?', () => { S = { modules: [] }; save(); render(); toast('Données effacées'); });
   }
@@ -99,7 +141,7 @@ $('#file').onchange = e => {
   r.onload = () => {
     try {
       const d = JSON.parse(r.result); if (!Array.isArray(d.modules)) throw 0;
-      const clean = d.modules.map(m => ({ id: String(m.id || uid()), name: String(m.name), types: (m.types || ['Cours', 'TD', 'TP']).map(String), absences: (m.absences || []).map(a => ({ id: String(a.id || uid()), date: String(a.date).slice(0, 10), type: String(a.type || ''), note: String(a.note || ''), justified: !!a.justified })) }));
+      const clean = d.modules.map(m => ({ id: String(m.id || uid()), name: String(m.name), types: (m.types || ['Cours', 'TD', 'TP']).map(String), grades: Object.fromEntries(['coef', 'cc1', 'cc2', 'exam', 'tp'].map(k => [k, String((m.grades || {})[k] ?? '')])), absences: (m.absences || []).map(a => ({ id: String(a.id || uid()), date: String(a.date).slice(0, 10), type: String(a.type || ''), note: String(a.note || ''), justified: !!a.justified })) }));
       confirmBox(`Importer ${clean.length} module(s) ? Les données actuelles seront remplacées.`, () => { S = { modules: clean }; save(); view = { n: 'home' }; render(); toast('Import réussi'); });
     } catch (err) { toast('Fichier invalide'); }
   };
